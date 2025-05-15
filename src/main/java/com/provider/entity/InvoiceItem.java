@@ -33,7 +33,7 @@ public class InvoiceItem {
 
     @ManyToOne
     @JoinColumn(name = "product_id")
-    @JsonIgnore
+//    @JsonIgnore
     private Product product;
 
     private int quantity;

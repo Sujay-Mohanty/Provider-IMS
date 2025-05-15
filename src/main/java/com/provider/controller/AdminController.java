@@ -5,7 +5,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,11 +13,13 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.provider.dto.ProductUpdateRequestDTO;
+import com.provider.dto.PurchaseOrderRequestDTO;
 import com.provider.dto.VendorProductDTO;
 import com.provider.entity.Invoice;
 import com.provider.entity.Product;
@@ -79,14 +80,24 @@ public class AdminController {
 	}
 
 	// NO RETURNING
-	@PostMapping("/purchase/add")
-    public ResponseEntity<String> handlePurchaseOrder(@RequestParam Long vendorId,
-            @RequestParam int quantity,
-            @RequestParam double price) {
-LocalDateTime purchaseDate = LocalDateTime.now();
-invoiceService.createPurchaseInvoice(vendorId, quantity, price, purchaseDate);
-return ResponseEntity.status(HttpStatus.CREATED).body("Purchase order created successfully");
-}
+	   public ResponseEntity<String> handlePurchaseOrder(@RequestBody PurchaseOrderRequestDTO request) {
+	        try {
+	            LocalDateTime purchaseDate = LocalDateTime.now();
+	            invoiceService.createPurchaseInvoice(
+	                request.getVendorId(),
+	                request.getQuantity(),
+	                request.getPrice(),
+	                purchaseDate
+	            );
+
+	            return ResponseEntity.status(HttpStatus.CREATED)
+	                                 .body("Purchase order created successfully");
+
+	        } catch (Exception e) {
+	            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+	                                 .body("Failed to create purchase order");
+	        }
+	    }
 
 	// DONE
 	@GetMapping("/vendor/{vendorId}/product")
@@ -122,6 +133,8 @@ return ResponseEntity.status(HttpStatus.CREATED).body("Purchase order created su
 
         return ResponseEntity.ok(invoiceData);
     }
+	
+	
 
 
     @DeleteMapping("/invoice/{id}")
@@ -140,17 +153,14 @@ return ResponseEntity.status(HttpStatus.CREATED).body("Purchase order created su
 	}
 
 	@PostMapping("/products/update/{id}")
-	public ResponseEntity<String> updateProduct(@PathVariable Long id, @RequestParam String name,
-			@RequestParam String description) {
-		Optional<Product> optionalProduct = productService.findById(id);
-		if (optionalProduct.isPresent()) {
-			Product product = optionalProduct.get();
-			product.setName(name);
-			product.setDescription(description);
-			productService.addProduct(product);
-			return ResponseEntity.ok("Product updated successfully");
-		} else {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Product not found");
-		}
-	}
+    public ResponseEntity<String> updateProduct(@PathVariable Long id,
+                                                @RequestBody ProductUpdateRequestDTO request) {
+        try {
+            productService.updateProduct(id, request.getName(), request.getDescription());
+            return ResponseEntity.ok("Product updated successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                 .body("Failed to update product");
+        }
+    }
 }
