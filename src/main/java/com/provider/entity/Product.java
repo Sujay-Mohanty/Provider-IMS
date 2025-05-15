@@ -4,6 +4,8 @@ package com.provider.entity;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -25,7 +27,9 @@ import lombok.Setter;
 @Entity
 @Table(name="imsprod")
 public class Product {
-    @Id
+
+
+	@Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
@@ -35,12 +39,15 @@ public class Product {
     private double price;
 
     @OneToOne(mappedBy = "product", cascade = CascadeType.ALL)
+    @JsonIgnore
     private Vendor vendor;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<CartItem> cartItems = new ArrayList<>();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<InvoiceItem> invoiceItems = new ArrayList<>();
 }
 

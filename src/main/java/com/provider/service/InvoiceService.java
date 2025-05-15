@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -134,5 +135,8 @@ public class InvoiceService {
 	public List<Invoice> findByUserAndType(User user, String type) {
 		return invoiceRepository.findAllByUserAndType( user,type);
 
+	}
+	public Optional<Invoice> findById(Long id) {
+		return invoiceRepository.findById(id);
 	}
 }

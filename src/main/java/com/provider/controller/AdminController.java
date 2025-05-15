@@ -8,17 +8,16 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.provider.dto.VendorProductDTO;
 import com.provider.entity.Invoice;
@@ -28,154 +27,130 @@ import com.provider.service.InvoiceService;
 import com.provider.service.ProductService;
 import com.provider.service.VendorService;
 
-@Controller
+@RestController
 @RequestMapping("/admin")
 public class AdminController {
-	
+
 	@Autowired
 	ProductService productService;
-	
+
 	@Autowired
 	VendorService vendorService;
-	
+
 	@Autowired
-    private InvoiceService invoiceService;
+	private InvoiceService invoiceService;
 
-	@GetMapping("/adminHome")
-	public String adminHome(){
-		return "adminHome";
-	}
-	@GetMapping("/vendor")
-	public String vendorPage() {
-		return "vendor";
-	}
-	@GetMapping("/vendor/add")
-	public String addVendorForm(Model model) {
-		model.addAttribute("vendorproductDTO",new VendorProductDTO());
-
-		
-		return "vendorAdd";
-	}
-	
+	// DONE
 	@PostMapping("/vendor/add/save")
-	public String addVendor(@ModelAttribute VendorProductDTO vpDTO)
-			//@ModelAttribute("product") Product product,
-//			@ModelAttribute("vendor") Vendor vendor 
-	{
-	    Vendor vendor = vpDTO.getVendor();
+	public ResponseEntity<String> addVendor(@RequestBody VendorProductDTO vpDTO) {
+		Vendor vendor = vpDTO.getVendor();
+		Product product = vpDTO.getProduct();
 
-	    Product product = vpDTO.getProduct();
-	    productService.addProduct(product);
-	    vendor.setProduct(product);
-	    vendorService.addVendor(vendor);
-//	    product.setVendor_id(vendorService.findVendorByName(vendor.getName()).getId());
-	    productService.addProduct(product);
-		
-		//product.setVendor_id(vendorService.findVendorByName(vendor.getName()).getId());
-		//productService.addProduct(product);
-		return "adminHome";	
-		
+		productService.addProduct(product);
+		vendor.setProduct(product);
+		vendorService.addVendor(vendor);
+		productService.addProduct(product); // Link product to vendor
+
+		return ResponseEntity.status(HttpStatus.CREATED).body("Vendor and Product added successfully");
 	}
-	
+
+	// DONE
 	@GetMapping("/vendor/view")
-	public String viewVendors(Model model) {
-		List<Vendor> vendors=vendorService.viewAll();
-		model.addAttribute("vendors",vendors);
-		return "vendorView";
+	public ResponseEntity<List<Vendor>> getAllVendors() {
+		return ResponseEntity.ok(vendorService.viewAll());
 	}
-    @PostMapping("/vendor/delete/{id}")
-    public String deleteVendor(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-        // Optional: Check if the vendor exists
-    	 System.out.println("Deleting vendor with ID: " + id);
-        if (vendorService.vendorExistsById(id)) {
-            vendorService.deleteById(id);
-            System.out.println("Deleted vendor : " + id);
-            redirectAttributes.addFlashAttribute("success", "Vendor deleted successfully.");
-        } else {
-            redirectAttributes.addFlashAttribute("error", "Vendor not found.");
-        }
-        return "redirect:/admin/vendor/view";
+
+	// DONE
+	@PostMapping("/vendor/delete/{id}")
+	public ResponseEntity<String> deleteVendor(@PathVariable Long id) {
+		if (vendorService.vendorExistsById(id)) {
+			vendorService.deleteById(id);
+			return ResponseEntity.ok("Vendor with ID " + id + " deleted successfully");
+		}
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Vendor not found");
+	}
+
+	// CLIENT SIDE
+	@GetMapping("/purchase")
+	public List<Vendor> showPurchaseForm() {
+		return vendorService.viewAll();
+//	        model.addAttribute("vendors", vendorService.viewAll());
+//	        return "purchaseOrder";
+	}
+
+	// NO RETURNING
+	@PostMapping("/purchase/add")
+    public ResponseEntity<String> handlePurchaseOrder(@RequestParam Long vendorId,
+            @RequestParam int quantity,
+            @RequestParam double price) {
+LocalDateTime purchaseDate = LocalDateTime.now();
+invoiceService.createPurchaseInvoice(vendorId, quantity, price, purchaseDate);
+return ResponseEntity.status(HttpStatus.CREATED).body("Purchase order created successfully");
+}
+
+	// DONE
+	@GetMapping("/vendor/{vendorId}/product")
+//	@ResponseBody
+	public ResponseEntity<Product> getProductByVendor(@PathVariable Long vendorId) {
+		return vendorService.findById(vendorId).map(vendor -> ResponseEntity.ok(vendor.getProduct()))
+				.orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+	}
+
+	// DONE
+	@GetMapping("/invoices")
+	public ResponseEntity<List<Map<String, Object>>> getAllInvoices() {
+        List<Invoice> invoices = invoiceService.findAll();
+
+        List<Map<String, Object>> invoiceData = invoices.stream().map(invoice -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("invoice", invoice);
+            map.put("formattedDate", invoice.getDateTime().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")));
+
+            String name = invoice.getType().equalsIgnoreCase("PURCHASE") && invoice.getVendor() != null
+                    ? invoice.getVendor().getName()
+                    : invoice.getUser() != null ? invoice.getUser().getName() : "N/A";
+
+            map.put("entityName", name);
+
+            double total = invoice.getItems().stream()
+                    .mapToDouble(item -> item.getUnitPrice() * item.getQuantity())
+                    .sum();
+            map.put("calculatedTotal", total);
+
+            return map;
+        }).toList();
+
+        return ResponseEntity.ok(invoiceData);
     }
-	 @GetMapping("/purchase")
-	    public String showPurchaseForm(Model model) {
-	        model.addAttribute("vendors", vendorService.viewAll());
-	        return "purchaseOrder";
-	    }
 
-	 @PostMapping("/purchase/add")
-	 public String handlePurchaseOrder(
-	         @RequestParam Long vendorId,
-	         @RequestParam int quantity,
-	         @RequestParam double price) {
 
-	     LocalDateTime purchaseDate = LocalDateTime.now(); // current timestamp
-	     invoiceService.createPurchaseInvoice(vendorId, quantity, price, purchaseDate);
-	     return "redirect:/admin/adminHome";
-	 }
-	    @GetMapping("/vendor/{vendorId}/product")
-	    @ResponseBody
-	    public ResponseEntity<Product> getProductByVendor(@PathVariable Long vendorId) {
-	        return vendorService.findById(vendorId)
-	                .map(vendor -> ResponseEntity.ok(vendor.getProduct()))
-	                .orElse(ResponseEntity.notFound().build());
-	    }
-	    @GetMapping("/invoices")
-	    public String viewInvoices(Model model) {
-	        List<Invoice> invoices = invoiceService.findAll();
+    @DeleteMapping("/invoice/{id}")
+    public ResponseEntity<String> deleteInvoice(@PathVariable Long id) {
+        if (invoiceService.findById(id).isPresent()) {
+            invoiceService.deleteById(id);
+            return ResponseEntity.ok("Invoice deleted successfully");
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Invoice not found");
+        }
+    }
 
-	        List<Map<String, Object>> invoiceData = invoices.stream().map(invoice -> {
-	            Map<String, Object> map = new HashMap<>();
-	            map.put("invoice", invoice);
-	            map.put("formattedDate", invoice.getDateTime().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")));
+	@GetMapping("/products")
+	public ResponseEntity<List<Product>> viewAllProducts() {
+		return ResponseEntity.ok(productService.viewAll());
+	}
 
-	            // Add entity name based on type (vendor or user)
-	            String name = invoice.getType().equalsIgnoreCase("PURCHASE") && invoice.getVendor() != null
-	                    ? invoice.getVendor().getName()
-	                    : invoice.getUser() != null ? invoice.getUser().getName() : "N/A";
-
-	            map.put("entityName", name); // for display as vendor/customer name in the view
-
-	            // Optional: Compute total from items (for safety in case invoice.price is missing or misaligned)
-	            double total = invoice.getItems().stream()
-	                    .mapToDouble(item -> item.getUnitPrice() * item.getQuantity())
-	                    .sum();
-	            map.put("calculatedTotal", total); // fallback if needed
-
-	            return map;
-	        }).toList();
-
-	        model.addAttribute("invoiceData", invoiceData);
-	        return "viewInvoices";
-	    }
-
-	    @PostMapping("/invoice/delete/{id}")
-	    public String deleteInvoice(@PathVariable Long id) {
-	        invoiceService.deleteById(id);
-	        return "redirect:/admin/invoices";
-	    }
-	    
-	    @GetMapping("/products")
-	    public String viewAllProducts(Model model) {
-	        List<Product> products = productService.viewAll();
-	        model.addAttribute("products", products);
-	        return "viewProducts";
-	    }
-	    @PostMapping("/products/update/{id}")
-	    public String updateProduct(@PathVariable Long id,
-	                                @RequestParam String name,
-	                                @RequestParam String description,
-	                                RedirectAttributes redirectAttributes) {
-	        Optional<Product> optionalProduct = productService.findById(id);
-	        if (optionalProduct.isPresent()) {
-	            Product product = optionalProduct.get();
-	            product.setName(name);
-	            product.setDescription(description);
-	            productService.addProduct(product);
-	            redirectAttributes.addFlashAttribute("success", "Product updated successfully.");
-	        } else {
-	            redirectAttributes.addFlashAttribute("error", "Product not found.");
-	        }
-
-	        return "redirect:/admin/products";
-	    }
+	@PostMapping("/products/update/{id}")
+	public ResponseEntity<String> updateProduct(@PathVariable Long id, @RequestParam String name,
+			@RequestParam String description) {
+		Optional<Product> optionalProduct = productService.findById(id);
+		if (optionalProduct.isPresent()) {
+			Product product = optionalProduct.get();
+			product.setName(name);
+			product.setDescription(description);
+			productService.addProduct(product);
+			return ResponseEntity.ok("Product updated successfully");
+		} else {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Product not found");
+		}
+	}
 }
