@@ -19,13 +19,17 @@ public class UserService {
 		userRepository.save(user);
 	}
 	
-	public User findByEmailAndPassword(User user) {
+	public Optional<User> findByEmailAndPassword(User user) {
 		return userRepository.findByEmailAndPassword(user.getEmail(),user.getPassword());
 	}
 
 	public Optional<User> findByName(String name) {
 		// TODO Auto-generated method stub
 		return userRepository.findByName(name);
+	}
+
+	public User findByEmail(String email) {
+		return userRepository.findByEmail(email).get();
 	}
 	
 	

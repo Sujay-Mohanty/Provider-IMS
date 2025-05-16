@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -45,8 +46,8 @@ public class UserController {
 	InvoiceService invoiceService;
 
 	@GetMapping("/products")
-	public ResponseEntity<?> viewAllProducts(HttpSession session) {
-		User loggedInUser = (User) session.getAttribute("loggedInUser");
+	public ResponseEntity<?> viewAllProducts(@RequestHeader("X-User-Email") String email) {
+		User loggedInUser = userService.findByEmail(email);
 		if (loggedInUser == null) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not logged in");
 		}
@@ -56,18 +57,18 @@ public class UserController {
 	}
 
 	@GetMapping("/userHome")
-	public ResponseEntity<?> userHome(HttpSession session) {
-		User user = (User) session.getAttribute("loggedInUser");
-		if (user == null) {
+	public ResponseEntity<?> userHome(@RequestHeader("X-User-Email") String email) {
+		User loggedInUser = userService.findByEmail(email);
+		if (loggedInUser  == null) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not logged in");
 		}
 
-		return ResponseEntity.ok(user);
+		return ResponseEntity.ok(loggedInUser);
 	}
 
 	@PostMapping("/cart/add/{productId}")
-	public ResponseEntity<?> addToCart(@PathVariable Long productId, @RequestParam int quantity, HttpSession session) {
-		User loggedInUser = (User) session.getAttribute("loggedInUser");
+	public ResponseEntity<?> addToCart(@PathVariable Long productId, @RequestParam int quantity, @RequestHeader("X-User-Email") String email) {
+		User loggedInUser = userService.findByEmail(email);
 		if (loggedInUser == null) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not logged in");
 		}
@@ -82,8 +83,8 @@ public class UserController {
 
 	// View cart
 	@GetMapping("/cart")
-	public ResponseEntity<?> viewCart(HttpSession session) {
-		User loggedInUser = (User) session.getAttribute("loggedInUser");
+	public ResponseEntity<?> viewCart(@RequestHeader("X-User-Email") String email) {
+		User loggedInUser = userService.findByEmail(email);
 		if (loggedInUser == null) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not logged in");
 		}
@@ -111,35 +112,36 @@ public class UserController {
 	}
 
 	@GetMapping("/cart/orders")
-	public ResponseEntity<?> placeOrder(HttpSession session) {
-		User loggedInUser = (User) session.getAttribute("loggedInUser");
-		if (loggedInUser == null) {
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not logged in");
-		}
+    public ResponseEntity<?> placeOrder(@RequestHeader("X-User-Email") String email) {
+        User loggedInUser = userService.findByEmail(email);
+        if (loggedInUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
+        }
 
-		invoiceService.createSalesInvoice(loggedInUser);
-		return ResponseEntity.ok("Order placed successfully");
-	}
+        invoiceService.createSalesInvoice(loggedInUser);
+        return ResponseEntity.ok("Order placed successfully");
+    }
 
-	// ✅ View user orders
-	@GetMapping("/orders")
-	public ResponseEntity<?> viewUserOrders(HttpSession session) {
-		User loggedInUser = (User) session.getAttribute("loggedInUser");
-		if (loggedInUser == null) {
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not logged in");
-		}
 
-		List<Invoice> salesInvoices = invoiceService.findByUserAndType(loggedInUser, "SALES");
-		List<Map<String, Object>> invoiceData = new ArrayList<>();
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+    // ✅ View User Orders
+    @GetMapping("/orders")
+    public ResponseEntity<?> viewUserOrders(@RequestHeader("X-User-Email") String email) {
+        User loggedInUser = userService.findByEmail(email);
+        if (loggedInUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
+        }
 
-		for (Invoice invoice : salesInvoices) {
-			Map<String, Object> map = new HashMap<>();
-			map.put("invoice", invoice);
-			map.put("formattedDate", invoice.getDateTime().format(formatter));
-			invoiceData.add(map);
-		}
+        List<Invoice> salesInvoices = invoiceService.findByUserAndType(loggedInUser, "SALES");
+        List<Map<String, Object>> invoiceData = new ArrayList<>();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
 
-		return ResponseEntity.ok(invoiceData);
-	}
+        for (Invoice invoice : salesInvoices) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("invoice", invoice);
+            map.put("formattedDate", invoice.getDateTime().format(formatter));
+            invoiceData.add(map);
+        }
+
+        return ResponseEntity.ok(invoiceData);
+    }
 }

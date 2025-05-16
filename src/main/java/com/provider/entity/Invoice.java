@@ -40,7 +40,7 @@ public class Invoice {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    @JsonIgnore
+//    @JsonIgnore
     private User user; // only for SALES invoice
 
     @ManyToOne

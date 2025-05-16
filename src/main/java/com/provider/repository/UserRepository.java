@@ -9,7 +9,7 @@ import com.provider.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long>{
 
-	public User findByEmailAndPassword(String email,String password);
+	public Optional<User> findByEmailAndPassword(String email,String password);
 	//Should return an optional 
 	
 	public Optional<User> findByName(String name);
