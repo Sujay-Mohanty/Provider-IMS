@@ -34,6 +34,7 @@ public class User {
     private String email;
     private String contact;
     private String password;
+    private String role;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Cart cart;

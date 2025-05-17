@@ -80,6 +80,7 @@ public class AdminController {
 	}
 
 	// NO RETURNING
+	@PostMapping("/purchase/add")
 	   public ResponseEntity<String> handlePurchaseOrder(@RequestBody PurchaseOrderRequestDTO request) {
 	        try {
 	            LocalDateTime purchaseDate = LocalDateTime.now();
